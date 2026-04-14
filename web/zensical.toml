@@ -44,10 +44,23 @@ Copyright &copy; 2026 The authors
 # can be defined using TOML syntax.
 #
 # Read more: https://zensical.org/docs/setup/navigation/
-# nav = [
-#   { "Get started" = "index.md" },
-#   { "Markdown in 5min" = "markdown.md" },
-# ]
+nav = [
+    {"Overview" = [
+       "index.md",
+       {"Overview" = "index.md"},
+       {"Quick Start" = "quickstart.md"},
+       {"API" = "api.md"},
+       {"CLI" = "cli.md"},
+       {"Environment Variables" = "env.md"}
+    ]},
+    {"zh" = [
+       "zh/index.md",
+       {"概览" = "zh/index.md"},
+       {"快速开始" = "zh/quickstart.md"},
+       {"API 参考" = "zh/api.md"},
+
+    ]}
+]
 
 # With the "extra_css" option you can add your own CSS styling to customize
 # your Zensical project according to your needs. You can add any number of
@@ -57,7 +70,7 @@ Copyright &copy; 2026 The authors
 #
 # Read more: https://zensical.org/docs/customization/#additional-css
 #
-#extra_css = ["stylesheets/extra.css"]
+extra_css = ["assets/extra.css"]
 
 # With the `extra_javascript` option you can add your own JavaScript to your
 # project to customize the behavior according to your needs.
@@ -215,7 +228,7 @@ features = [
     # When tabs are enabled, top-level sections are rendered in a menu layer
     # below the header for viewports above 1220px, but remain as-is on mobile.
     # https://zensical.org/docs/setup/navigation/#navigation-tabs
-    #"navigation.tabs",
+    "navigation.tabs",
 
     # When sticky tabs are enabled, navigation tabs will lock below the header
     # and always remain visible when scrolling down.
@@ -303,3 +316,9 @@ toggle.name = "Switch to light mode"
 #[[project.extra.social]]
 #icon = "fontawesome/brands/github"
 #link = "https://github.com/user/repo"
+
+[project.extra]
+alternate = [
+   # { name = "English", link = "/", lang = "en" },
+   # { name = "中文", link = "/zh/", lang = "zh" }
+]

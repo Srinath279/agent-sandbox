@@ -2,172 +2,63 @@
 icon: lucide/rocket
 ---
 
-# Get started
+# Agent-Sandbox Overview
 
-Full documentation visit [zensical.org](https://zensical.org/docs/).
+![uiimg-sbxs.png](assets/agent-sandbox.png)
 
-## Commands
+Agent-Sandbox is an open-source, Kubernetes-native runtime platform for AI agents.
+It provides isolated, stateful, multi-tenant sandboxes for code execution, browser/computer tasks, and shell workflows.
 
-* [`zensical new`][new] - Create a new project
-* [`zensical serve`][serve] - Start local web server
-* [`zensical build`][build] - Build your site
+The project is designed to be compatible with E2B protocol and SDK workflows while also exposing native REST API, MCP, and a web UI.
 
-  [new]: https://zensical.org/docs/usage/new/
-  [serve]: https://zensical.org/docs/usage/preview/
-  [build]: https://zensical.org/docs/usage/build/
+---
 
-## Examples
+<div class="grid cards" markdown>
 
-### Admonitions
+-   :material-clock-fast:{ .lg .middle } __Set up in 5 minutes__
 
-> Go to [documentation](https://zensical.org/docs/authoring/admonitions/)
+    ---
 
-!!! note
+    Install [`Agent-Sandobx`](#) with [`kubectl apply`](#) and get up
+    and running in minutes
 
-    This is a **note** admonition. Use it to provide helpful information.
+    [:octicons-arrow-right-24: Getting started](quickstart)
 
-!!! warning
+-   :lucide-plug:{ .lg .middle } __Ai friendly__
 
-    This is a **warning** admonition. Be careful!
+    ---
 
-### Details
+    Supports Skills, Cli and MCP to empower your agents with sandbox capabilities
 
-> Go to [documentation](https://zensical.org/docs/authoring/admonitions/#collapsible-blocks)
+    [:octicons-arrow-right-24: Reference](cli)
 
-??? info "Click to expand for more info"
+-   :lucide-mouse-pointer-click:{ .lg .middle } __Easy to use__
 
-    This content is hidden until you click to expand it.
-    Great for FAQs or long explanations.
+    ---
 
-## Code Blocks
+    Designed with a simple **REST API**, **UI** and minimizing Kubernetes's objects to deploy for easy to use and maintain.
 
-> Go to [documentation](https://zensical.org/docs/authoring/code-blocks/)
+-   :lucide-package-open:{ .lg .middle } __Open and flexible__
 
-``` python hl_lines="2" title="Code blocks"
-def greet(name):
-    print(f"Hello, {name}!") # (1)!
+    ---
+   
+    Supports E2B templates and any container image, and can be extended with **custom templates**.
 
-greet("Python")
-```
+</div>
 
-1.  > Go to [documentation](https://zensical.org/docs/authoring/code-blocks/#code-annotations)
+---
 
-    Code annotations allow to attach notes to lines of code.
+## What it provides
 
-Code can also be highlighted inline: `#!python print("Hello, Python!")`.
+- **E2B protocol compatibility** for sandbox lifecycle APIs and routing.
+- **Sandbox lifecycle management**: create, list, connect, delete.
+- **Multi-tenant access control** with system and regular users.
+- **Template and pool management** for fast sandbox allocation and warmup.
+- **Observability** with sandbox events, metrics, and logs.
+- **Interactive operations**: terminal, file upload/download, and sandbox routing.
+- **MCP server integration** for agent-native automation.
+- **Web UI** for sandbox/template/pool operations and runtime inspection.
 
-## Content tabs
+## Quick start :octicons-heart-fill-24:{ .heart }
 
-> Go to [documentation](https://zensical.org/docs/authoring/content-tabs/)
-
-=== "Python"
-
-    ``` python
-    print("Hello from Python!")
-    ```
-
-=== "Rust"
-
-    ``` rs
-    println!("Hello from Rust!");
-    ```
-
-## Diagrams
-
-> Go to [documentation](https://zensical.org/docs/authoring/diagrams/)
-
-``` mermaid
-graph LR
-  A[Start] --> B{Error?};
-  B -->|Yes| C[Hmm...];
-  C --> D[Debug];
-  D --> B;
-  B ---->|No| E[Yay!];
-```
-
-## Footnotes
-
-> Go to [documentation](https://zensical.org/docs/authoring/footnotes/)
-
-Here's a sentence with a footnote.[^1]
-
-Hover it, to see a tooltip.
-
-[^1]: This is the footnote.
-
-
-## Formatting
-
-> Go to [documentation](https://zensical.org/docs/authoring/formatting/)
-
-- ==This was marked (highlight)==
-- ^^This was inserted (underline)^^
-- ~~This was deleted (strikethrough)~~
-- H~2~O
-- A^T^A
-- ++ctrl+alt+del++
-
-## Icons, Emojis
-
-> Go to [documentation](https://zensical.org/docs/authoring/icons-emojis/)
-
-* :sparkles: `:sparkles:`
-* :rocket: `:rocket:`
-* :tada: `:tada:`
-* :memo: `:memo:`
-* :eyes: `:eyes:`
-
-## Maths
-
-> Go to [documentation](https://zensical.org/docs/authoring/math/)
-
-$$
-\cos x=\sum_{k=0}^{\infty}\frac{(-1)^k}{(2k)!}x^{2k}
-$$
-
-!!! warning "Needs configuration"
-    Note that MathJax is included via a `script` tag on this page and is not
-    configured in the generated default configuration to avoid including it
-    in a pages that do not need it. See the documentation for details on how
-    to configure it on all your pages if they are more Maths-heavy than these
-    simple starter pages.
-
-<script id="MathJax-script" src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
-<script>
-  window.MathJax = {
-    tex: {
-      inlineMath: [["\\(", "\\)"]],
-      displayMath: [["\\[", "\\]"]],
-      processEscapes: true,
-      processEnvironments: true
-    },
-    options: {
-      ignoreHtmlClass: ".*|",
-      processHtmlClass: "arithmatex"
-    }
-  };
-
-  document$.subscribe(() => {
-    MathJax.startup.output.clearCache()
-    MathJax.typesetClear()
-    MathJax.texReset()
-    MathJax.typesetPromise()
-  })
-</script>
-
-## Task Lists
-
-> Go to [documentation](https://zensical.org/docs/authoring/lists/#using-task-lists)
-
-* [x] Install Zensical
-* [x] Configure `zensical.toml`
-* [x] Write amazing documentation
-* [ ] Deploy anywhere
-
-## Tooltips
-
-> Go to [documentation](https://zensical.org/docs/authoring/tooltips/)
-
-[Hover me][example]
-
-  [example]: https://example.com "I'm a tooltip!"
+See [Quick Start](quickstart.md) for a step-by-step guide covering deployment, creating a sandbox via E2B SDK, and using the REST API.
