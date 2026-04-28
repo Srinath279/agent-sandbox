@@ -14,6 +14,8 @@ repo_name = "agent-sandbox/agent-sandbox"
 #
 # Read more: https://zensical.org/docs/setup/basics/#site_name
 site_name = "Agent-Sandbox"
+site_dir = "site/zh"
+docs_dir = "docs_zh"
 
 # The site_description is included in the HTML head and should contain a
 # meaningful description of the site content for use by search engines.
@@ -47,19 +49,19 @@ Copyright &copy; 2026 The authors
 #
 # Read more: https://zensical.org/docs/setup/navigation/
 nav = [
-    {"Overview" = [
-       {"Overview" = "overview.md"},
-       {"Quick Start" = "quickstart.md"},
-       {"API" = "api.md"},
-       {"CLI" = "cli.md"},
-        {"Config" = [
-            {"Environment Variables" = "env.md"},
-            {"Sandbox Template" = "sandbox-template.md"},
-            {"Templates" = "templates.md"},
+    {"概览" = [
+       {"概览" = "overview.md"},
+       {"快速上手" = "quickstart.md"},
+       {"API 接口" = "api.md"},
+       {"命令行工具" = "cli.md"},
+        {"配置" = [
+            {"环境变量" = "env.md"},
+            {"沙盒模板" = "sandbox-template.md"},
+            {"模板" = "templates.md"}
         ]}
     ]},
-    {"Practices" = [
-       {"E2B SDK Workarounds" = "practices/e2b_workarounds.md"},
+    {"实践" = [
+       {"E2B SDK 解决方案" = "practices/e2b_workarounds.md"}
     ]}
 ]
 
@@ -122,7 +124,7 @@ favicon = "logo.svg"
 # Read more:
 # - https://zensical.org/docs/setup/language/
 #
-language = "en"
+language = "zh"
 
 # Zensical provides a number of feature toggles that change the behavior
 # of the documentation site.

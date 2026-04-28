@@ -8,6 +8,8 @@ import LoginPage from '../pages/LoginPage'
 import LogsPage from '../pages/LogsPage'
 import PoolDetailPage from '../pages/PoolDetailPage'
 import PoolListPage from '../pages/PoolListPage'
+import RateLimitPage from '../pages/RateLimitPage'
+import RuntimeConfigPage from '../pages/RuntimeConfigPage'
 import SandboxesPage from '../pages/SandboxesPage'
 import SandboxTemplateConfigPage from '../pages/SandboxTemplateConfigPage'
 import TemplatesConfigPage from '../pages/TemplatesConfigPage'
@@ -52,6 +54,10 @@ export const appRouter = createHashRouter([
             element: <PoolListPage />,
           },
           {
+            path: 'ratelimit',
+            element: <RateLimitPage />,
+          },
+          {
             path: 'logs',
             element: <LogsPage />,
           },
@@ -78,6 +84,10 @@ export const appRouter = createHashRouter([
           {
             path: 'config/sandbox-template',
             element: <SandboxTemplateConfigPage />,
+          },
+          {
+            path: 'config/runtime',
+            element: <RuntimeConfigPage />,
           },
         ],
       },

@@ -4,12 +4,12 @@ icon: lucide/play
 
 # 快速开始
 
-本指南带你完成 Agent-Sandbox 的部署，并通过 E2B SDK 和 REST API 创建你的第一个沙箱。
+本指南将带你完成 Agent-Sandbox 的部署，并通过 E2B SDK 和 REST API 创建你的第一个沙箱。
 
 ## 前置条件
 
 - Kubernetes 集群（版本 1.26 或更高）
-- 已配置 `kubectl` 可访问集群
+- 已配置 `kubectl` 可访问你的集群
 - （可选）`e2b-code-interpreter` Python SDK：`pip install e2b-code-interpreter`
 
 ## 1. 部署 Agent-Sandbox
@@ -21,9 +21,16 @@ kubectl create namespace agent-sandbox
 kubectl apply -n agent-sandbox -f install.yaml
 ```
 
+!!! Tip
+
+    下载 `install.yaml`：https://github.com/agent-sandbox/agent-sandbox/blob/main/install.yaml
+
+
+[install.yaml](https://github.com/agent-sandbox/agent-sandbox/blob/main/install.yaml) 包含完整的部署配置和 `Agent-Sandbox` 控制器组件。
+
 ## 2. 暴露服务
 
-创建 Ingress 或使用端口转发：
+创建 Ingress：
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -45,7 +52,7 @@ spec:
         path: /
 ```
 
-或使用端口转发进行本地测试：
+或本地测试使用端口转发：
 
 ```bash
 kubectl port-forward -n agent-sandbox svc/agent-sandbox 8080:80
@@ -54,24 +61,24 @@ kubectl port-forward -n agent-sandbox svc/agent-sandbox 8080:80
 ## 3. 验证部署
 
 ```bash
-curl http://localhost:8080/healthz
+curl https://agent-sandbox.your-host.com/healthz
 ```
 
 预期响应：
 
 ```json
-{"status":"ok","version":"0.4.2"}
+{"status":"ok","version":"xxx"}
 ```
 
 ## 4. 认证
 
-获取你的 API Key。默认系统用户 token 为：
+获取你的 API 密钥。默认系统令牌是：
 
 ```
 sys-2492a85b10ed4cb083b2c76b181eac96
 ```
 
-所有 API 请求均需携带 `Authorization` 请求头：
+所有 API 请求需要 `Authorization` 头：
 
 ```bash
 Authorization: Bearer <your-api-key>
@@ -81,7 +88,7 @@ Authorization: Bearer <your-api-key>
 
 ## 通过 E2B SDK 创建沙箱
 
-推荐 Python 应用使用 E2B SDK。
+E2B SDK 是 Python 应用的推荐方式。
 
 ### 安装 SDK
 
@@ -95,12 +102,32 @@ pip install e2b-code-interpreter
 import os
 
 # 将 SDK 指向你的 Agent-Sandbox 实例
-os.environ['E2B_API_URL'] = 'http://localhost:8080/e2b/v1'
+os.environ['E2B_API_URL'] = 'https://agent-sandbox.your-host.com/e2b/v1'
 os.environ['E2B_API_KEY'] = 'sys-2492a85b10ed4cb083b2c76b181eac96'
-os.environ['E2B_DOMAIN'] = 'localhost:8080'
+os.environ['E2B_DOMAIN'] = 'agent-sandbox.your-host.com'
 ```
 
-### 创建并使用沙箱
+#### 本地开发配置
+!!! Warning
+
+    对于本地或开发环境（无 HTTPS），SDK 的默认 API URL 无法工作。使用以下配置连接本地实例：
+
+```python
+def local():
+    os.environ['E2B_DEBUG'] = "true"
+    os.environ['E2B_API_URL'] = 'http://localhost:10000/e2b/v1'
+    os.environ['E2B_API_KEY'] = 'testuser-aef134ef-7aa1-945e-9399-7df9a4ad0c3f'
+    os.environ['E2B_DOMAIN'] = 'localhost:10000'
+
+    def __connection_config_get_host(_, sandbox_id: str, sandbox_domain: str, port: int) -> str:
+        return f"{sandbox_domain}/sandboxes/router/{sandbox_id}/{port}"
+    from e2b import ConnectionConfig
+    ConnectionConfig.get_host = __connection_config_get_host
+```
+
+
+
+### 创建和使用沙箱
 
 ```python
 from e2b_code_interpreter import Sandbox
@@ -122,7 +149,7 @@ print(result.stdout)
 sandbox.kill()
 ```
 
-### 连接已有沙箱
+### 连接到已有沙箱
 
 ```python
 from e2b_code_interpreter import Sandbox
@@ -136,7 +163,7 @@ print(f"Connected to: {sandbox.sandbox_id}")
 
 ## 通过 REST API 创建沙箱
 
-非 Python 环境可直接调用 REST API。
+对于非 Python 环境，直接使用 REST API。
 
 ### 原生 REST API
 
@@ -201,9 +228,3 @@ curl -X DELETE http://localhost:8080/api/v1/sandbox/my-sandbox \
 ```
 
 ---
-
-## 下一步
-
-- [API 参考](api.md) — 完整 API 文档
-- [E2B CLI 指南](/cli/README.md) — CLI 使用示例
-- [示例](/examples/e2b.md) — 更多集成示例

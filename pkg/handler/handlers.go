@@ -24,6 +24,7 @@ import (
 	"io"
 	"net/http"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,6 +33,7 @@ import (
 	"github.com/agent-sandbox/agent-sandbox/pkg/activator"
 	"github.com/agent-sandbox/agent-sandbox/pkg/auth"
 	"github.com/agent-sandbox/agent-sandbox/pkg/config"
+	"github.com/agent-sandbox/agent-sandbox/pkg/ratelimit"
 	"github.com/agent-sandbox/agent-sandbox/pkg/sandbox"
 	"github.com/agent-sandbox/agent-sandbox/pkg/utils"
 	"github.com/gorilla/websocket"
@@ -184,6 +186,17 @@ func (a *Handler) CreateSandbox(r *http.Request) (interface{}, error) {
 		return nil, fmt.Errorf("user not found, api key may be invalid")
 	}
 
+	if ratelimit.GlobalLimiter != nil && ratelimit.GlobalLimiter.Enabled() {
+		release, err := ratelimit.GlobalLimiter.AcquireCreate(user)
+		if err != nil {
+			limitErr := err.(*ratelimit.LimitError)
+			return nil, &HTTPError{Code: limitErr.Code, Message: limitErr.Message}
+		}
+		if release != nil {
+			defer release()
+		}
+	}
+
 	var sb = sandbox.GetDefaultSandbox()
 	sb.User = user
 
@@ -270,6 +283,100 @@ func (a *Handler) DelSandbox(r *http.Request) (interface{}, error) {
 	}
 
 	return fmt.Sprintf("Sandbox %s deleted successfully", name), nil
+}
+
+type RateLimitStatus struct {
+	User                string `json:"user,omitempty"`
+	ConcurrencyActive   int    `json:"concurrency_active"`
+	ConcurrencyMax      int    `json:"concurrency_max"`
+	SandboxCurrent      int    `json:"sandbox_current"`
+	SandboxMax          int    `json:"sandbox_max"`
+	SandboxUsagePercent int    `json:"sandbox_usage_percent"`
+}
+
+type AllRateLimitStatus struct {
+	DefaultConfig RateLimitDefaultConfig `json:"default_config"`
+	Users         []RateLimitStatus      `json:"users"`
+}
+
+type RateLimitDefaultConfig struct {
+	Enabled        bool `json:"enabled"`
+	MaxConcurrency int  `json:"max_concurrency"`
+	MaxSandbox     int  `json:"max_sandbox"`
+}
+
+func buildRateLimitStatus(user string, includeUser bool, active, maxConcurrency, current, maxSandbox int) RateLimitStatus {
+	usagePercent := 0
+	if maxSandbox > 0 {
+		usagePercent = (current * 100) / maxSandbox
+	}
+
+	status := RateLimitStatus{
+		ConcurrencyActive:   active,
+		ConcurrencyMax:      maxConcurrency,
+		SandboxCurrent:      current,
+		SandboxMax:          maxSandbox,
+		SandboxUsagePercent: usagePercent,
+	}
+	if includeUser {
+		status.User = user
+	}
+	return status
+}
+
+func (a *Handler) GetRateLimitStatus(r *http.Request) (interface{}, error) {
+	if auth.GetUserTokenFromContext(r.Context()) == "" {
+		return nil, fmt.Errorf("user not found, api key may be invalid")
+	}
+
+	if ratelimit.GlobalLimiter == nil {
+		return AllRateLimitStatus{
+			DefaultConfig: RateLimitDefaultConfig{},
+			Users:         []RateLimitStatus{},
+		}, nil
+	}
+
+	defaultConfig := ratelimit.GlobalLimiter.DefaultConfig()
+	result := AllRateLimitStatus{
+		DefaultConfig: RateLimitDefaultConfig{
+			Enabled:        defaultConfig.Enabled,
+			MaxConcurrency: defaultConfig.MaxConcurrency,
+			MaxSandbox:     defaultConfig.MaxSandbox,
+		},
+		Users: []RateLimitStatus{},
+	}
+
+	counts, err := ratelimit.GlobalLimiter.CountAllByUser()
+	if err != nil {
+		klog.Warningf("Failed to list user sandbox counts for rate limit stats: %v", err)
+		counts = map[string]int{}
+	}
+
+	userSet := map[string]struct{}{}
+	for u := range counts {
+		if u != "" {
+			userSet[u] = struct{}{}
+		}
+	}
+	for _, userCfg := range ratelimit.GlobalLimiter.UserConfigs() {
+		if userCfg.User != "" {
+			userSet[userCfg.User] = struct{}{}
+		}
+	}
+
+	allUsers := make([]string, 0, len(userSet))
+	for u := range userSet {
+		allUsers = append(allUsers, u)
+	}
+	sort.Strings(allUsers)
+
+	for _, u := range allUsers {
+		active, maxConcurrency := ratelimit.GlobalLimiter.ConcurrencyStats(u)
+		_, maxSandbox := ratelimit.GlobalLimiter.UserConfig(u)
+		result.Users = append(result.Users, buildRateLimitStatus(u, true, active, maxConcurrency, counts[u], maxSandbox))
+	}
+
+	return result, nil
 }
 
 func (a *Handler) GetSandboxLogs(r *http.Request) (interface{}, error) {
@@ -579,6 +686,117 @@ func (a *Handler) ExecuteSandboxTerminal(r *http.Request) (interface{}, error) {
 // Config handlers
 // ------------------------------------------------------
 
+type RuntimeConfigStatus struct {
+	ConfigMapKey           string                       `json:"config_map_key"`
+	SystemToken            string                       `json:"system_token"`
+	APITokensRaw           string                       `json:"api_tokens_raw"`
+	APITokens              []string                     `json:"api_tokens"`
+	APITokensCount         int                          `json:"api_tokens_count"`
+	RateLimit              config.RateLimitConfig       `json:"rate_limit"`
+	RateLimitUsersRaw      string                       `json:"rate_limit_users_raw"`
+	RateLimitUsers         []config.UserRateLimitConfig `json:"rate_limit_users"`
+	SandboxDefaultImage    string                       `json:"sandbox_default_image"`
+	SandboxDefaultTemplate string                       `json:"sandbox_default_template"`
+}
+
+func maskToken(token string) string {
+	if len(token) <= 10 {
+		return "***"
+	}
+	return token[:6] + "..." + token[len(token)-4:]
+}
+
+func requireSystemTokenAccess(r *http.Request) error {
+	user := auth.GetUserTokenFromContext(r.Context())
+	if !strings.HasPrefix(user, "sys-") {
+		return &HTTPError{Code: http.StatusForbidden, Message: "runtime config requires system token access"}
+	}
+	return nil
+}
+
+func buildRuntimeConfigStatus() RuntimeConfigStatus {
+	runtimeConfig := config.Cfg.RuntimeConfigSnapshot()
+	var systemToken, apiTokensRaw, rateLimitUsersRaw, sandboxDefaultImage, sandboxDefaultTemplate string
+	var rateLimit config.RateLimitConfig
+	if runtimeConfig.SystemToken != nil {
+		systemToken = *runtimeConfig.SystemToken
+	}
+	if runtimeConfig.APITokensRaw != nil {
+		apiTokensRaw = *runtimeConfig.APITokensRaw
+	}
+	if runtimeConfig.RateLimit != nil {
+		rateLimit = *runtimeConfig.RateLimit
+	}
+	if runtimeConfig.RateLimitUsersRaw != nil {
+		rateLimitUsersRaw = *runtimeConfig.RateLimitUsersRaw
+	}
+	if runtimeConfig.SandboxDefaultImage != nil {
+		sandboxDefaultImage = *runtimeConfig.SandboxDefaultImage
+	}
+	if runtimeConfig.SandboxDefaultTemplate != nil {
+		sandboxDefaultTemplate = *runtimeConfig.SandboxDefaultTemplate
+	}
+
+	tokens := config.ParseAPITokens(systemToken, apiTokensRaw)
+	maskedTokens := make([]string, 0, len(tokens))
+	for _, token := range tokens {
+		maskedTokens = append(maskedTokens, maskToken(token))
+	}
+	rateLimitUsers, _ := config.ParseRateLimitUsers(rateLimitUsersRaw)
+
+	return RuntimeConfigStatus{
+		ConfigMapKey:           config.RuntimeConfigMapKey,
+		SystemToken:            systemToken,
+		APITokensRaw:           apiTokensRaw,
+		APITokens:              maskedTokens,
+		APITokensCount:         len(tokens),
+		RateLimit:              rateLimit,
+		RateLimitUsersRaw:      rateLimitUsersRaw,
+		RateLimitUsers:         rateLimitUsers,
+		SandboxDefaultImage:    sandboxDefaultImage,
+		SandboxDefaultTemplate: sandboxDefaultTemplate,
+	}
+}
+
+func (a *Handler) GetRuntimeConfig(r *http.Request) (interface{}, error) {
+	if err := requireSystemTokenAccess(r); err != nil {
+		return nil, err
+	}
+
+	return buildRuntimeConfigStatus(), nil
+}
+
+func (a *Handler) SaveRuntimeConfig(r *http.Request) (interface{}, error) {
+	if err := requireSystemTokenAccess(r); err != nil {
+		return nil, err
+	}
+
+	var runtimeConfig config.RuntimeConfig
+	if err := json.NewDecoder(r.Body).Decode(&runtimeConfig); err != nil {
+		return "", fmt.Errorf("failed to decode request body: %v", err)
+	}
+
+	if runtimeConfig.RateLimitUsersRaw != nil {
+		if _, err := config.ParseRateLimitUsers(*runtimeConfig.RateLimitUsersRaw); err != nil {
+			return "", fmt.Errorf("rate_limit_users_raw must be a valid JSON array: %v", err)
+		}
+	}
+
+	mergedRuntimeConfig := config.Cfg.MergedRuntimeConfig(runtimeConfig)
+	content, err := config.RuntimeConfigContent(mergedRuntimeConfig)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal runtime config: %v", err)
+	}
+
+	if err := config.Cfg.SaveRuntimeConfigToCM(content); err != nil {
+		return "", fmt.Errorf("failed to save runtime config error: %v", err)
+	}
+
+	config.Cfg.ApplyRuntimeConfig(mergedRuntimeConfig)
+
+	return buildRuntimeConfigStatus(), nil
+}
+
 func (a *Handler) GetTemplatesConfig(r *http.Request) (interface{}, error) {
 	return config.Cfg.ReadTemplatesFromCM()
 }
@@ -617,7 +835,7 @@ func validateSandboxTemplateContent(content string) error {
 
 	sampleSandbox := sandbox.GetDefaultSandbox()
 	sampleSandbox.Name = "sbx-sample"
-	sampleSandbox.Image = config.Cfg.SandboxDefaultImage
+	sampleSandbox.Image = config.Cfg.GetSandboxDefaultImage()
 	sampleSandbox.TemplateObj = &config.Template{Name: sampleSandbox.Template, Image: sampleSandbox.Image}
 	tplData := &sandbox.SandboxKube{
 		Sandbox:   sampleSandbox,

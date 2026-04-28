@@ -9,7 +9,7 @@ import (
 )
 
 func IsAuthEnabled() bool {
-	return config.Cfg != nil && len(config.Cfg.APITokens) > 0
+	return config.Cfg != nil && len(config.Cfg.GetAPITokens()) > 0
 }
 
 func ExtractToken(r *http.Request) string {
@@ -27,7 +27,7 @@ func IsTokenAllowed(token string) bool {
 	if token == "" {
 		return false
 	}
-	for _, allowed := range config.Cfg.APITokens {
+	for _, allowed := range config.Cfg.GetAPITokens() {
 		if token == allowed {
 			return true
 		}

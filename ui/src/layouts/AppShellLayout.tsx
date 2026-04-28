@@ -12,15 +12,17 @@ export default function AppShellLayout() {
 
   const canViewSandboxes = canAccessNav('sandboxes', token)
   const canViewPool = canAccessNav('pool', token)
+  const canViewRateLimit = canAccessNav('rateLimit', token)
   const canViewLogs = canAccessNav('logs', token)
   const canViewTerminal = canAccessNav('terminal', token)
   const canViewFiles = canAccessNav('files', token)
   const canViewTemplatesConfig = canAccessNav('templatesConfig', token)
   const canViewSandboxTemplateConfig = canAccessNav('sandboxTemplateConfig', token)
+  const canViewRuntimeConfig = canAccessNav('runtimeConfig', token)
   const canViewEvents = canAccessNav('events', token)
 
   const hasSandboxTools = canViewLogs || canViewTerminal || canViewFiles
-  const hasSettings = canViewTemplatesConfig || canViewSandboxTemplateConfig || canViewEvents
+  const hasSettings = canViewTemplatesConfig || canViewSandboxTemplateConfig || canViewRuntimeConfig || canViewEvents
 
   const tokenPreview = token ? `${token.substring(0, 10)}...` : 'N/A'
 
@@ -95,6 +97,13 @@ export default function AppShellLayout() {
                       </NavLink>
                   </li>
                 )}
+                {canViewRateLimit && (
+                  <li>
+                      <NavLink to="/ratelimit" className={({isActive}) => (isActive ? 'menu-active text-left' : 'text-left')}>
+                          Capacity
+                      </NavLink>
+                  </li>
+                )}
                 {hasSandboxTools && <li></li>}
                 {hasSandboxTools && <li className="menu-title">Sandbox Tools</li>}
                 {canViewLogs && (
@@ -121,6 +130,14 @@ export default function AppShellLayout() {
                 )}
                 {hasSettings && <li></li>}
                 {hasSettings && <li className="menu-title">Settings</li>}
+                {canViewRuntimeConfig && (
+                  <li>
+                      <NavLink to="/config/runtime"
+                               className={({isActive}) => (isActive ? 'menu-active text-left' : 'text-left')}>
+                          Runtime Config
+                      </NavLink>
+                  </li>
+                )}
                 {canViewTemplatesConfig && (
                   <li>
                       <NavLink to="/config/templates"

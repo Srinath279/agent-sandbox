@@ -192,3 +192,49 @@ export type SandboxEventsData = {
   items: SandboxEventItem[]
   fetchedAt: string
 }
+
+export type RateLimitDefaultConfig = {
+  enabled?: boolean
+  max_concurrency: number
+  max_sandbox: number
+}
+
+export type RateLimitUserStatus = {
+  user?: string
+  concurrency_active: number
+  concurrency_max: number
+  sandbox_current: number
+  sandbox_max: number
+  sandbox_usage_percent: number
+}
+
+export type RateLimitStatusData = {
+  default_config: RateLimitDefaultConfig
+  users: RateLimitUserStatus[]
+}
+
+export type UserRateLimitConfig = {
+  user: string
+  max_concurrency: number
+  max_sandbox: number
+}
+
+export type RuntimeConfigPayload = {
+  system_token: string
+  api_tokens_raw: string
+  rate_limit: {
+    enabled: boolean
+    max_concurrency: number
+    max_sandbox: number
+  }
+  rate_limit_users_raw: string
+  sandbox_default_image: string
+  sandbox_default_template: string
+}
+
+export type RuntimeConfigStatus = RuntimeConfigPayload & {
+  config_map_key: string
+  api_tokens: string[]
+  api_tokens_count: number
+  rate_limit_users: UserRateLimitConfig[]
+}

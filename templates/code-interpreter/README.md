@@ -15,3 +15,5 @@ docker build -t ghcr.io/agent-sandbox/code-interpreter:0.4.0 .
 
 docker push ghcr.io/agent-sandbox/code-interpreter:0.4.0
 
+### envd
+build from https://github.com/e2b-dev/infra/

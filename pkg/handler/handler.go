@@ -24,6 +24,7 @@ import (
 	"github.com/agent-sandbox/agent-sandbox/pkg/activator"
 	e2bapi "github.com/agent-sandbox/agent-sandbox/pkg/api/e2b"
 	"github.com/agent-sandbox/agent-sandbox/pkg/config"
+	"github.com/agent-sandbox/agent-sandbox/pkg/ratelimit"
 	"github.com/agent-sandbox/agent-sandbox/pkg/router"
 	"github.com/agent-sandbox/agent-sandbox/pkg/sandbox"
 	"k8s.io/klog/v2"
@@ -46,6 +47,8 @@ func New(rootCtx context.Context, a *activator.Activator, c *sandbox.Controller)
 		controller: c,
 	}
 	ah.regHandlers()
+
+	ratelimit.Init(c)
 
 	// Wrap mux with api key auth middleware and global logging middleware
 	authMux := ApiKeyAuthMiddleware(mux)
@@ -71,6 +74,7 @@ func (ahh *ApiHttpHandler) regHandlers() {
 	ahh.mux.HandleFunc(fmt.Sprintf("DELETE %s/sandbox/{name}", config.Cfg.APIBaseURL), func(w http.ResponseWriter, r *http.Request) { wrapperHandler(w, r, sbHeader.DelSandbox) })
 	ahh.mux.HandleFunc(fmt.Sprintf("GET %s/sandbox/{name}", config.Cfg.APIBaseURL), func(w http.ResponseWriter, r *http.Request) { wrapperHandler(w, r, sbHeader.GetSandbox) })
 	ahh.mux.HandleFunc(fmt.Sprintf("POST %s/sandbox/metrics", config.Cfg.APIBaseURL), func(w http.ResponseWriter, r *http.Request) { wrapperHandler(w, r, sbHeader.SandboxMetrics) })
+	ahh.mux.HandleFunc(fmt.Sprintf("GET %s/ratelimit", config.Cfg.APIBaseURL), func(w http.ResponseWriter, r *http.Request) { wrapperHandler(w, r, sbHeader.GetRateLimitStatus) })
 
 	ahh.mux.HandleFunc(fmt.Sprintf("GET %s/logs/sandbox/{name}", config.Cfg.APIBaseURL), func(w http.ResponseWriter, r *http.Request) { wrapperHandler(w, r, sbHeader.GetSandboxLogs) })
 	ahh.mux.HandleFunc(fmt.Sprintf("GET %s/events", config.Cfg.APIBaseURL), func(w http.ResponseWriter, r *http.Request) { wrapperHandler(w, r, sbHeader.ListSandboxEvents) })
@@ -84,6 +88,8 @@ func (ahh *ApiHttpHandler) regHandlers() {
 	ahh.mux.HandleFunc(fmt.Sprintf("GET %s/sandbox/files/{name}/download", config.Cfg.APIBaseURL), sbHeader.DownloadSandboxFile)
 
 	// Rest API for config
+	ahh.mux.HandleFunc(fmt.Sprintf("GET %s/config/runtime", config.Cfg.APIBaseURL), func(w http.ResponseWriter, r *http.Request) { wrapperHandler(w, r, sbHeader.GetRuntimeConfig) })
+	ahh.mux.HandleFunc(fmt.Sprintf("POST %s/config/runtime", config.Cfg.APIBaseURL), func(w http.ResponseWriter, r *http.Request) { wrapperHandler(w, r, sbHeader.SaveRuntimeConfig) })
 	ahh.mux.HandleFunc(fmt.Sprintf("GET %s/config/templates", config.Cfg.APIBaseURL), func(w http.ResponseWriter, r *http.Request) { wrapperHandler(w, r, sbHeader.GetTemplatesConfig) })
 	ahh.mux.HandleFunc(fmt.Sprintf("POST %s/config/templates", config.Cfg.APIBaseURL), func(w http.ResponseWriter, r *http.Request) { wrapperHandler(w, r, sbHeader.SaveTemplatesConfig) })
 	ahh.mux.HandleFunc(fmt.Sprintf("GET %s/config/sandbox-template", config.Cfg.APIBaseURL), func(w http.ResponseWriter, r *http.Request) { wrapperHandler(w, r, sbHeader.GetSandboxTemplateConfig) })
@@ -126,6 +132,10 @@ func (ahh *ApiHttpHandler) regHandlers() {
 func wrapperHandler(w http.ResponseWriter, r *http.Request, f func(*http.Request) (interface{}, error)) {
 	result, err := f(r)
 	if err != nil {
+		if httpErr, ok := err.(*HTTPError); ok {
+			ErrWithCode(w, httpErr.Code, httpErr.Message)
+			return
+		}
 		Err(w, err.Error())
 		return
 	}

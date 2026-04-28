@@ -38,10 +38,10 @@ const (
 )
 
 const (
-	DefaultCPU         = "50m"
-	DefaultMemory      = "100Mi"
-	DefaultCPULimit    = "2000m"
-	DefaultMemoryLimit = "4000Mi"
+	DefaultCPU         = "200m"
+	DefaultMemory      = "500Mi"
+	DefaultCPULimit    = "1000m"
+	DefaultMemoryLimit = "2000Mi"
 )
 
 type SandboxBase struct {
@@ -191,8 +191,8 @@ func (sb *Sandbox) Make() error {
 
 	// no set any params, use default template
 	if sb.Template == "" && sb.Image == "" {
-		sb.Template = config.Cfg.SandboxDefaultTemplate
-		sb.Image = config.Cfg.SandboxDefaultImage
+		sb.Template = config.Cfg.GetSandboxDefaultTemplate()
+		sb.Image = config.Cfg.GetSandboxDefaultImage()
 		t = &config.Template{
 			Name:  sb.Template,
 			Image: sb.Image,

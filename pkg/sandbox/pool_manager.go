@@ -26,6 +26,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	rsclient "knative.dev/pkg/client/injection/kube/informers/apps/v1/replicaset"
+	podclient "knative.dev/pkg/client/injection/kube/informers/core/v1/pod"
 	"knative.dev/pkg/reconciler"
 
 	"github.com/agent-sandbox/agent-sandbox/pkg/config"
@@ -34,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	kubeclient "knative.dev/pkg/client/injection/kube/client"
@@ -305,8 +307,45 @@ func (pm *PoolManager) adaptReplicasetToSandbox(rs *v1.ReplicaSet, sb *Sandbox) 
 		return nil, err
 	}
 
+	go func(sandboxName, user string) {
+		if err := pm.updatePoolPodLabels(sandboxName, user); err != nil {
+			klog.Errorf("failed to sync pool pod labels sandbox=%s err=%v", sandboxName, err)
+		}
+	}(rsCopy.Name, sb.User)
+
 	klog.V(2).Infof("adapted pool replicaset %s for sandbox %s", rs.Name, sb.Name)
 	return rsCopy, nil
+}
+
+func (pm *PoolManager) updatePoolPodLabels(sandboxName, user string) error {
+	selector := labels.Set{"sandbox": sandboxName}.AsSelector()
+	podList, err := podclient.Get(pm.rootCtx).Lister().Pods(config.Cfg.SandboxNamespace).List(selector)
+	if err != nil {
+		return fmt.Errorf("failed to list pods for sandbox %s: %w", sandboxName, err)
+	}
+
+	for _, pod := range podList {
+		podName := pod.Name
+		if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			latestPod, getErr := pm.client.CoreV1().Pods(config.Cfg.SandboxNamespace).Get(context.TODO(), podName, v1meta.GetOptions{})
+			if getErr != nil {
+				return getErr
+			}
+			podLabels := latestPod.GetLabels()
+			if podLabels == nil {
+				podLabels = make(map[string]string)
+			}
+			podLabels[UserLabel] = user
+			podLabels[PoolLabel] = "false"
+			latestPod.SetLabels(podLabels)
+			_, updateErr := pm.client.CoreV1().Pods(config.Cfg.SandboxNamespace).Update(context.TODO(), latestPod, v1meta.UpdateOptions{})
+			return updateErr
+		}); err != nil {
+			return fmt.Errorf("failed to update pod %s labels: %w", podName, err)
+		}
+	}
+
+	return nil
 }
 
 // createReplicaSet creates a specified number of pool replicasets for a template
@@ -414,7 +453,7 @@ func (pm *PoolManager) replenishPoolAsync() {
 		for i := 0; i < count; i++ {
 			sb := GetDefaultSandbox()
 			sb.Template = tpl.Name
-			sb.User = config.SystemToken
+			sb.User = config.Cfg.GetSystemToken()
 			sb.IsPool = true
 			if tpl.Pool.WarmupCmd != "" {
 				// "tail, -f /dev/null"

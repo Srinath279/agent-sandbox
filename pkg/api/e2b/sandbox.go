@@ -26,6 +26,7 @@ import (
 
 	"github.com/agent-sandbox/agent-sandbox/pkg/api/e2b/api"
 	"github.com/agent-sandbox/agent-sandbox/pkg/auth"
+	"github.com/agent-sandbox/agent-sandbox/pkg/ratelimit"
 	"github.com/agent-sandbox/agent-sandbox/pkg/sandbox"
 	"github.com/agent-sandbox/agent-sandbox/pkg/utils"
 	"k8s.io/klog/v2"
@@ -129,6 +130,17 @@ func (a *Handler) CreateSandbox(ctx context.Context, newSandbox *api.NewSandbox)
 		return nil, &APIError{
 			ClientMsg: "User not found, api key may be invalid",
 			Code:      http.StatusBadRequest,
+		}
+	}
+
+	if ratelimit.GlobalLimiter != nil && ratelimit.GlobalLimiter.Enabled() {
+		release, err := ratelimit.GlobalLimiter.AcquireCreate(user)
+		if err != nil {
+			limitErr := err.(*ratelimit.LimitError)
+			return nil, &APIError{ClientMsg: limitErr.Message, Code: limitErr.Code}
+		}
+		if release != nil {
+			defer release()
 		}
 	}
 

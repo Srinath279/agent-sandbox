@@ -797,3 +797,54 @@ func (s *Controller) SandboxMetrics(names []string) (data map[string]SandboxMetr
 func (s *Controller) ExecCommandInPod(name string, cmd []string) (output string, outputErr string, err error) {
 	return utils.ExecCommand(s.kclient, s.kcfg, config.Cfg.SandboxNamespace, name, "sandbox", cmd)
 }
+
+func (s *Controller) CountByUser(user string) (int, error) {
+	selector := labels.Set{
+		"owner":   "agent-sandbox",
+		UserLabel: user,
+		PoolLabel: "false",
+	}.AsSelector()
+	rsList, err := s.kclient.AppsV1().ReplicaSets(config.Cfg.SandboxNamespace).List(
+		context.TODO(),
+		v1meta.ListOptions{LabelSelector: selector.String()},
+	)
+	if err != nil {
+		return 0, fmt.Errorf("failed to list replicasets for user %s: %w", user, err)
+	}
+	return len(rsList.Items), nil
+}
+
+func (s *Controller) CountAllByUser() (map[string]int, error) {
+	selector := labels.Set{
+		"owner":   "agent-sandbox",
+		PoolLabel: "false",
+	}.AsSelector()
+	rsList, err := s.kclient.AppsV1().ReplicaSets(config.Cfg.SandboxNamespace).List(
+		context.TODO(),
+		v1meta.ListOptions{LabelSelector: selector.String()},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list replicasets: %w", err)
+	}
+
+	counts := make(map[string]int)
+	for _, rs := range rsList.Items {
+		if user, ok := rs.Labels[UserLabel]; ok && user != "" {
+			counts[user]++
+		}
+	}
+	return counts, nil
+}
+
+func (s *Controller) ListAllUsers() ([]string, error) {
+	counts, err := s.CountAllByUser()
+	if err != nil {
+		return nil, err
+	}
+
+	users := make([]string, 0, len(counts))
+	for user := range counts {
+		users = append(users, user)
+	}
+	return users, nil
+}

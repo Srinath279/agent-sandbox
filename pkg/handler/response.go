@@ -18,8 +18,19 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
+
+// HTTPError for not normal error
+type HTTPError struct {
+	Code    int
+	Message string
+}
+
+func (e *HTTPError) Error() string {
+	return e.Message
+}
 
 type response struct {
 	Code  string      `json:"code"`
@@ -36,6 +47,7 @@ func Ok(w http.ResponseWriter, s interface{}) {
 	json.NewEncoder(w).Encode(data)
 }
 
+//Err normal err
 func Err(w http.ResponseWriter, s string) {
 	data := &response{
 		Code:  "400",
@@ -43,4 +55,13 @@ func Err(w http.ResponseWriter, s string) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
+}
+
+func ErrWithCode(w http.ResponseWriter, code int, msg string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(&response{
+		Code:  fmt.Sprintf("%d", code),
+		Error: msg,
+	})
 }
