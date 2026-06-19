@@ -15,6 +15,8 @@ e2b --version
 e2b --help
 ```
 
+
+
 ## Authentication
 
 Authenticate before sandbox operations:
